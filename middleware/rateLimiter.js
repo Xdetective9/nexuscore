@@ -1,5 +1,4 @@
 const rateLimit = require('express-rate-limit');
-const { RateLimiterPostgres } = require('rate-limiter-flexible');
 
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -10,10 +9,7 @@ const apiLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    skipSuccessfulRequests: false,
-    keyGenerator: (req) => {
-        return req.ip || req.connection.remoteAddress;
-    }
+    skipSuccessfulRequests: false
 });
 
 const authLimiter = rateLimit({
@@ -34,6 +30,15 @@ const pluginLimiter = rateLimit({
     }
 });
 
+const adminLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 30,
+    message: {
+        error: 'Too many admin requests',
+        retryAfter: 900
+    }
+});
+
 const rateLimiterMiddleware = (req, res, next) => {
     const path = req.path;
     
@@ -42,7 +47,7 @@ const rateLimiterMiddleware = (req, res, next) => {
     }
     
     if (path.startsWith('/admin') || path.startsWith('/plugins/upload')) {
-        return pluginLimiter(req, res, next);
+        return adminLimiter(req, res, next);
     }
     
     if (path.startsWith('/api')) {
@@ -56,5 +61,6 @@ module.exports = {
     rateLimiterMiddleware,
     apiLimiter,
     authLimiter,
-    pluginLimiter
+    pluginLimiter,
+    adminLimiter
 };
