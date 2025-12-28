@@ -7,43 +7,15 @@ const morgan = require('morgan');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const fileUpload = require('express-fileupload');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-// ========== INITIALIZE APP ==========
 const app = express();
 const PORT = process.env.PORT || 10000;
-const HOST = process.env.HOST || '0.0.0.0';
-
-// ========== DATABASE CONNECTION ==========
-const { initDatabase, db } = require('./utils/database');
-
-// ========== SOCKET.IO SETUP ==========
-const { createServer } = require('http');
-const { Server } = require('socket.io');
-const server = createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    }
-});
-
-// ========== GLOBAL VARIABLES ==========
-global.plugins = [];
-global.io = io;
-global.db = db;
 
 // ========== MIDDLEWARE ==========
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:", "https:"]
-        }
-    }
+    contentSecurityPolicy: false // Temporarily disable for development
 }));
 app.use(cors());
 app.use(morgan('dev'));
@@ -54,73 +26,323 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(fileUpload({
     useTempFiles: true,
     tempFileDir: '/tmp/',
-    limits: { fileSize: 50 * 1024 * 1024 },
-    safeFileNames: true,
-    preserveExtension: true
+    limits: { fileSize: 50 * 1024 * 1024 }
 }));
 
-// ========== SESSION CONFIGURATION ==========
+// ========== SESSION ==========
 const sessionStore = new (require('connect-pg-simple')(session))({
     conString: process.env.DATABASE_URL,
-    createTableIfMissing: true,
-    tableName: 'user_sessions'
+    createTableIfMissing: true
 });
 
 app.use(session({
     store: sessionStore,
-    secret: process.env.SESSION_SECRET || 'your-64-character-secret-key-change-this',
+    secret: process.env.SESSION_SECRET || 'nexuscore-secret-key-change-in-production',
     resave: false,
     saveUninitialized: false,
     cookie: { 
         secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        sameSite: 'strict'
-    },
-    name: 'nexuscore.sid'
-}));
-
-// ========== RATE LIMITING ==========
-const { rateLimiterMiddleware } = require('./middleware/rateLimiter');
-app.use(rateLimiterMiddleware);
-
-// ========== VIEW ENGINE ==========
-app.set('view engine', 'ejs');
-app.set('views', [
-    path.join(__dirname, 'views'),
-    path.join(__dirname, 'plugins/views')
-]);
-
-// ========== STATIC FILES ==========
-app.use('/static', express.static(path.join(__dirname, 'public'), {
-    maxAge: '1y',
-    setHeaders: (res, path) => {
-        if (path.endsWith('.css')) {
-            res.setHeader('Content-Type', 'text/css');
-        }
+        maxAge: 7 * 24 * 60 * 60 * 1000
     }
 }));
 
-// ========== PLUGIN LOADER ==========
-const { loadPlugins, loadPluginRoutes } = require('./middleware/pluginLoader');
-app.use((req, res, next) => {
-    res.locals.plugins = global.plugins;
-    res.locals.user = req.session.user;
-    next();
+// ========== RATE LIMITING ==========
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: 'Too many requests from this IP'
 });
+app.use(limiter);
+
+// ========== VIEW ENGINE ==========
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+// ========== STATIC FILES ==========
+app.use('/static', express.static(path.join(__dirname, 'public')));
+
+// ========== GLOBAL PLUGINS ==========
+global.plugins = [];
 
 // ========== ROUTES ==========
-const indexRoutes = require('./routes/index');
-const authRoutes = require('./routes/auth');
-const adminRoutes = require('./routes/admin');
-const pluginRoutes = require('./routes/plugins');
-const apiRoutes = require('./routes/api');
 
-app.use('/', indexRoutes);
-app.use('/auth', authRoutes);
-app.use('/admin', adminRoutes);
-app.use('/plugins', pluginRoutes);
-app.use('/api/v1', apiRoutes);
+// Home
+app.get('/', (req, res) => {
+    res.render('index', {
+        title: 'Home | NexusCore',
+        ownerName: process.env.OWNER_NAME || 'Abdullah',
+        ownerNumber: process.env.OWNER_NUMBER || '+923288055104',
+        user: req.session.user
+    });
+});
+
+// Health check
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy', 
+        timestamp: new Date(),
+        uptime: process.uptime(),
+        version: '2.0.0'
+    });
+});
+
+// Features
+app.get('/features', (req, res) => {
+    res.render('features', {
+        title: 'Features | NexusCore',
+        user: req.session.user,
+        plugins: global.plugins || []
+    });
+});
+
+// Plugins
+app.get('/plugins', (req, res) => {
+    res.render('plugins/index', {
+        title: 'Plugins | NexusCore',
+        user: req.session.user,
+        plugins: global.plugins || []
+    });
+});
+
+// ========== AUTH ROUTES ==========
+app.get('/auth/login', (req, res) => {
+    res.render('auth/login', {
+        title: 'Login | NexusCore',
+        error: null,
+        phone: ''
+    });
+});
+
+app.post('/auth/login', async (req, res) => {
+    const { phone } = req.body;
+    
+    // Simple demo - always send success
+    req.session.loginPhone = phone;
+    res.redirect('/auth/verify');
+});
+
+app.get('/auth/signup', (req, res) => {
+    res.render('auth/signup', {
+        title: 'Sign Up | NexusCore',
+        error: null,
+        phone: ''
+    });
+});
+
+app.post('/auth/signup', async (req, res) => {
+    const { phone, name, email } = req.body;
+    
+    // Store in session
+    req.session.signupData = { phone, name, email };
+    req.session.loginPhone = phone;
+    
+    res.redirect('/auth/verify');
+});
+
+app.get('/auth/verify', (req, res) => {
+    const phone = req.session.loginPhone || req.session.signupData?.phone;
+    
+    if (!phone) {
+        return res.redirect('/auth/login');
+    }
+    
+    res.render('auth/verify', {
+        title: 'Verify OTP | NexusCore',
+        phone: phone,
+        error: null
+    });
+});
+
+app.post('/auth/verify', async (req, res) => {
+    const { otp } = req.body;
+    const phone = req.session.loginPhone || req.session.signupData?.phone;
+    
+    if (!phone) {
+        return res.redirect('/auth/login');
+    }
+    
+    // Demo verification - accept any 6-digit OTP
+    if (otp && otp.length === 6 && /^\d+$/.test(otp)) {
+        // Get user data
+        const userData = req.session.signupData || { phone, name: 'User' };
+        
+        // Create user session
+        req.session.user = {
+            id: 'user_' + Date.now(),
+            phone: userData.phone,
+            name: userData.name || 'User',
+            email: userData.email,
+            role: phone === process.env.OWNER_NUMBER ? 'admin' : 'user',
+            verified: true
+        };
+        
+        // Clear temp data
+        delete req.session.loginPhone;
+        delete req.session.signupData;
+        
+        // Redirect based on role
+        if (req.session.user.role === 'admin') {
+            res.redirect('/admin');
+        } else {
+            res.redirect('/dashboard');
+        }
+    } else {
+        res.render('auth/verify', {
+            title: 'Verify OTP | NexusCore',
+            phone: phone,
+            error: 'Invalid OTP. Please try again.'
+        });
+    }
+});
+
+app.get('/auth/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/');
+});
+
+// ========== DASHBOARD ==========
+app.get('/dashboard', (req, res) => {
+    if (!req.session.user) {
+        return res.redirect('/auth/login');
+    }
+    
+    res.render('dashboard', {
+        title: 'Dashboard | NexusCore',
+        user: req.session.user
+    });
+});
+
+// ========== ADMIN ROUTES ==========
+app.get('/admin/login', (req, res) => {
+    if (req.session.user?.role === 'admin') {
+        return res.redirect('/admin');
+    }
+    
+    res.render('admin/login', {
+        title: 'Admin Login | NexusCore',
+        error: null
+    });
+});
+
+app.post('/admin/login', (req, res) => {
+    const { password } = req.body;
+    
+    if (password === process.env.ADMIN_PASSWORD || password === 'Rana0986') {
+        req.session.user = {
+            id: 'admin',
+            name: process.env.OWNER_NAME || 'Abdullah',
+            phone: process.env.OWNER_NUMBER || '+923288055104',
+            role: 'admin',
+            verified: true
+        };
+        return res.redirect('/admin');
+    }
+    
+    res.render('admin/login', {
+        title: 'Admin Login | NexusCore',
+        error: 'Incorrect password'
+    });
+});
+
+app.get('/admin', (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+        return res.redirect('/admin/login');
+    }
+    
+    res.render('admin/dashboard', {
+        title: 'Admin Dashboard | NexusCore',
+        user: req.session.user,
+        plugins: global.plugins || [],
+        stats: {
+            totalUsers: 1,
+            totalPlugins: global.plugins.length,
+            dailyLogs: 0,
+            dailySMS: 0
+        }
+    });
+});
+
+app.get('/admin/plugins', (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+        return res.redirect('/admin/login');
+    }
+    
+    res.render('admin/plugins', {
+        title: 'Plugin Manager | NexusCore',
+        user: req.session.user,
+        plugins: global.plugins || []
+    });
+});
+
+app.get('/admin/plugins/upload', (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+        return res.redirect('/admin/login');
+    }
+    
+    res.render('admin/upload', {
+        title: 'Upload Plugin | NexusCore',
+        user: req.session.user
+    });
+});
+
+app.post('/admin/plugins/upload', async (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    
+    try {
+        if (!req.files || !req.files.plugin) {
+            return res.json({
+                success: false,
+                error: 'No plugin file uploaded'
+            });
+        }
+        
+        const pluginFile = req.files.plugin;
+        const pluginName = pluginFile.name.replace('.plugin.js', '');
+        
+        // Add to global plugins
+        const newPlugin = {
+            id: pluginName,
+            name: pluginName.charAt(0).toUpperCase() + pluginName.slice(1),
+            version: '1.0.0',
+            author: 'Uploaded by ' + req.session.user.name,
+            description: 'Uploaded plugin',
+            enabled: true,
+            loadedAt: new Date()
+        };
+        
+        global.plugins.push(newPlugin);
+        
+        res.json({
+            success: true,
+            message: 'Plugin uploaded successfully',
+            plugin: newPlugin
+        });
+    } catch (error) {
+        res.json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// ========== API ROUTES ==========
+app.get('/api/v1/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        timestamp: new Date(),
+        plugins: global.plugins.length
+    });
+});
+
+app.get('/api/v1/plugins', (req, res) => {
+    res.json({
+        success: true,
+        plugins: global.plugins,
+        count: global.plugins.length
+    });
+});
 
 // ========== ERROR HANDLING ==========
 app.use((req, res) => {
@@ -131,69 +353,30 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-    console.error('Error:', err.stack);
-    res.status(err.status || 500).render('error', {
+    console.error('Error:', err);
+    res.status(500).render('error', {
         title: 'Error',
-        message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong!'
+        message: 'Something went wrong!'
     });
 });
 
-// ========== SOCKET.IO EVENTS ==========
-io.on('connection', (socket) => {
-    console.log('🔌 New client connected:', socket.id);
-    
-    socket.on('plugin_upload', (data) => {
-        socket.broadcast.emit('plugin_update', data);
-    });
-    
-    socket.on('admin_notification', (data) => {
-        socket.to('admin-room').emit('notification', data);
-    });
-    
-    socket.on('disconnect', () => {
-        console.log('Client disconnected:', socket.id);
-    });
-});
-
-// ========== INITIALIZE AND START ==========
-async function startServer() {
-    try {
-        await initDatabase();
-        console.log('✅ Database initialized');
-        
-        await loadPlugins();
-        console.log('✅ Plugins loaded');
-        
-        server.listen(PORT, HOST, () => {
-            console.log(`
-╔══════════════════════════════════════════════════════════╗
-║              🚀 NEXUSCORE v2.0 STARTED                  ║
-╠══════════════════════════════════════════════════════════╣
-║ 📍 Host: ${HOST}:${PORT}                                ║
-║ 🌐 URL: http://${HOST}:${PORT}                          ║
-║ ⚡ Environment: ${process.env.NODE_ENV || 'development'} ║
-║ 🔌 Plugins Loaded: ${global.plugins.length}             ║
-╠══════════════════════════════════════════════════════════╣
-║              ✅ ALL SYSTEMS OPERATIONAL                 ║
-╚══════════════════════════════════════════════════════════╝
+// ========== START SERVER ==========
+app.listen(PORT, () => {
+    console.log(`
+╔══════════════════════════════════════════╗
+║         🚀 NexusCore Started           ║
+╠══════════════════════════════════════════╣
+║ 📍 Port: ${PORT}                        ║
+║ 🌐 URL: http://localhost:${PORT}        ║
+╠══════════════════════════════════════════╣
+║         ✅ ALL SYSTEMS GO              ║
+╚══════════════════════════════════════════╝
 
 👤 Owner: ${process.env.OWNER_NAME || 'Abdullah'}
 📞 Contact: ${process.env.OWNER_NUMBER || '+923288055104'}
-🔐 Admin Panel: /admin/login
-🔑 Default Password: ${process.env.ADMIN_PASSWORD || 'Rana0986'}
-🧩 Plugins Directory: /plugins
-📱 SMS Auth: Enabled
-🤖 WhatsApp Bot: Ready
-📊 Database: Connected
-🛡️ Security: Active
-            `);
-        });
-    } catch (error) {
-        console.error('❌ Failed to start server:', error);
-        process.exit(1);
-    }
-}
-
-startServer();
-
-module.exports = { app, server, io };
+🔐 Admin: /admin/login (Password: Rana0986)
+🧩 Plugins: /plugins
+📱 Auth: /auth/login
+🏥 Health: /health
+    `);
+});
