@@ -1,0 +1,29 @@
+<nav class="navbar">
+    <div class="nav-content">
+        <a href="/" class="logo">
+            🚀 <span>NexusCore</span>
+        </a>
+        
+        <button class="hamburger" id="hamburger">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        
+        <ul class="nav-menu" id="navMenu">
+            <li><a href="/" class="nav-link <%= currentPage === 'home' ? 'active' : '' %>">Home</a></li>
+            <li><a href="/features" class="nav-link <%= currentPage === 'features' ? 'active' : '' %>">Features</a></li>
+            <li><a href="/plugins" class="nav-link <%= currentPage === 'plugins' ? 'active' : '' %>">Plugins</a></li>
+            <% if (user) { %>
+                <li><a href="/dashboard" class="nav-link <%= currentPage === 'dashboard' ? 'active' : '' %>">Dashboard</a></li>
+                <% if (user.role === 'admin') { %>
+                    <li><a href="/admin" class="nav-link <%= currentPage === 'admin' ? 'active' : '' %>">Admin</a></li>
+                <% } %>
+                <li><a href="/auth/logout" class="btn btn-sm btn-secondary">Logout</a></li>
+            <% } else { %>
+                <li><a href="/auth/login" class="nav-link <%= currentPage === 'login' ? 'active' : '' %>">Login</a></li>
+                <li><a href="/auth/signup" class="btn btn-sm btn-primary">Sign Up</a></li>
+            <% } %>
+        </ul>
+    </div>
+</nav>
