@@ -1,17 +1,22 @@
 services:
   - type: web
-    name: nexuscore
+    name: nexuscore-prod
     env: node
     region: singapore
     plan: free
-    buildCommand: npm install
+    buildCommand: |
+      npm install
+      npm run setup
     startCommand: npm start
     healthCheckPath: /health
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
+      - key: HOST
+        value: 0.0.0.0
       - key: SESSION_SECRET
         generateValue: true
       - key: OWNER_NAME
@@ -21,4 +26,18 @@ services:
       - key: ADMIN_PASSWORD
         value: Rana0986
       - key: DATABASE_URL
-        value: "postgresql://nexuscore_db_user:wr1hv6xPzRSRZPxIWLRqcll8lgUBUxw8@dpg-d55dflm3jp1c739q6scg-a/nexuscore_db"
+        fromDatabase:
+          name: nexuscore-db
+          property: connectionString
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+databases:
+  - name: nexuscore-db
+    plan: free
+    databaseName: nexuscore
+    user: nexuscore_user
