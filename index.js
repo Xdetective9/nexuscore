@@ -1,6 +1,6 @@
 const express = require('express');
 const session = require('express-session');
-const path = require('path');
+const path = require('path'); // ← ONLY ONE TIME!
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -8,6 +8,7 @@ const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const fileUpload = require('express-fileupload');
 const rateLimit = require('express-rate-limit');
+const fs = require('fs').promises; // ← ADD THIS for plugin loader
 require('dotenv').config();
 
 const app = express();
@@ -63,10 +64,8 @@ app.use('/static', express.static(path.join(__dirname, 'public')));
 
 // ========== GLOBAL PLUGINS ==========
 global.plugins = [];
-// ========== PLUGIN LOADER ==========
-const fs = require('fs').promises;
-const path = require('path');
 
+// ========== PLUGIN LOADER ==========
 async function loadPlugins() {
     const pluginDir = path.join(__dirname, 'plugins');
     
@@ -111,8 +110,6 @@ async function loadPlugins() {
     console.log(`📦 Total plugins loaded: ${global.plugins.length}`);
 }
 
-// Load plugins on startup
-loadPlugins().catch(console.error);
 // ========== ROUTES ==========
 
 // Home
@@ -393,6 +390,24 @@ app.get('/api/v1/plugins', (req, res) => {
     });
 });
 
+// Plugin-specific API routes
+app.get('/api/plugins/whatsappbot/status', (req, res) => {
+    res.json({
+        success: true,
+        plugin: 'WhatsApp Bot',
+        connected: false,
+        message: 'Plugin loaded but not connected'
+    });
+});
+
+app.get('/api/plugins/downloader/supported', (req, res) => {
+    res.json({
+        success: true,
+        platforms: ['YouTube', 'Facebook', 'Instagram', 'Twitter', 'TikTok'],
+        formats: ['MP4', 'MP3']
+    });
+});
+
 // ========== ERROR HANDLING ==========
 app.use((req, res) => {
     res.status(404).render('404', {
@@ -410,13 +425,19 @@ app.use((err, req, res, next) => {
 });
 
 // ========== START SERVER ==========
-app.listen(PORT, () => {
-    console.log(`
+async function startServer() {
+    try {
+        // Load plugins
+        await loadPlugins();
+        
+        app.listen(PORT, () => {
+            console.log(`
 ╔══════════════════════════════════════════╗
 ║         🚀 NexusCore Started           ║
 ╠══════════════════════════════════════════╣
 ║ 📍 Port: ${PORT}                        ║
 ║ 🌐 URL: http://localhost:${PORT}        ║
+║ 📦 Plugins: ${global.plugins.length} loaded ║
 ╠══════════════════════════════════════════╣
 ║         ✅ ALL SYSTEMS GO              ║
 ╚══════════════════════════════════════════╝
@@ -424,8 +445,15 @@ app.listen(PORT, () => {
 👤 Owner: ${process.env.OWNER_NAME || 'Abdullah'}
 📞 Contact: ${process.env.OWNER_NUMBER || '+923288055104'}
 🔐 Admin: /admin/login (Password: Rana0986)
-🧩 Plugins: /plugins
+🧩 Plugins: /plugins (${global.plugins.length} available)
 📱 Auth: /auth/login
 🏥 Health: /health
-    `);
-});
+            `);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+}
+
+startServer();
