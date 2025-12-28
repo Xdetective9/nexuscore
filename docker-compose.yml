@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  nexuscore:
+    build: .
+    container_name: nexuscore
+    restart: unless-stopped
+    ports:
+      - "10000:10000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://nexuscore:password@postgres:5432/nexuscore
+      - SESSION_SECRET=${SESSION_SECRET}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./whatsapp-sessions:/app/whatsapp-sessions
+      - ./plugins:/app/plugins
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - nexuscore-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: nexuscore-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=nexuscore
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=nexuscore
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - nexuscore-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexuscore-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - nexuscore-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  nexuscore-network:
+    driver: bridge
