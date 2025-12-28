@@ -7,11 +7,61 @@
     <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
-    <%- include('partials/header') %>
+    <%- include('partials/header', { currentPage: 'dashboard' }) %>
     
     <div class="container">
-        <h1>Welcome, <%= user.name %>!</h1>
-        <p>This is your dashboard.</p>
+        <div style="margin: 2rem 0;">
+            <h1>👋 Welcome, <%= user.name %>!</h1>
+            <p style="color: #94a3b8;">Your NexusCore Dashboard</p>
+        </div>
+        
+        <div class="features-grid">
+            <div class="feature-card">
+                <h3>📱 Your Profile</h3>
+                <div style="margin-top: 1rem;">
+                    <p><strong>Phone:</strong> <%= user.phone %></p>
+                    <% if (user.email) { %>
+                        <p><strong>Email:</strong> <%= user.email %></p>
+                    <% } %>
+                    <p><strong>Role:</strong> <span style="color: <%= user.role === 'admin' ? '#10b981' : '#94a3b8' %>">
+                        <%= user.role %>
+                    </span></p>
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🔌 Available Plugins</h3>
+                <p style="margin: 1rem 0;">
+                    <span style="font-size: 2rem; color: #818cf8;">
+                        <%= plugins?.length || 0 %>
+                    </span><br>
+                    plugins available
+                </p>
+                <a href="/plugins" class="btn btn-primary">Browse Plugins</a>
+            </div>
+            
+            <% if (user.role === 'admin') { %>
+                <div class="feature-card">
+                    <h3>⚡ Admin Tools</h3>
+                    <div style="margin-top: 1rem;">
+                        <a href="/admin" class="btn btn-primary" style="display: block; margin-bottom: 0.5rem;">
+                            Admin Dashboard
+                        </a>
+                        <a href="/admin/plugins/upload" class="btn btn-secondary" style="display: block;">
+                            Upload Plugin
+                        </a>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+        
+        <!-- Quick Actions -->
+        <h2 style="margin: 3rem 0 1rem;">🚀 Quick Actions</h2>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <a href="/plugins" class="btn btn-secondary">🧩 Browse Plugins</a>
+            <a href="/features" class="btn btn-secondary">✨ View Features</a>
+            <a href="/auth/logout" class="btn btn-danger">🚪 Logout</a>
+        </div>
     </div>
 </body>
 </html>
