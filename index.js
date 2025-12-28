@@ -5,132 +5,195 @@ const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
 const compression = require('compression');
-const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
+const fileUpload = require('express-fileupload');
 require('dotenv').config();
 
+// ========== INITIALIZE APP ==========
 const app = express();
 const PORT = process.env.PORT || 10000;
+const HOST = process.env.HOST || '0.0.0.0';
+
+// ========== DATABASE CONNECTION ==========
+const { initDatabase, db } = require('./utils/database');
+
+// ========== SOCKET.IO SETUP ==========
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+const server = createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
+
+// ========== GLOBAL VARIABLES ==========
+global.plugins = [];
+global.io = io;
+global.db = db;
 
 // ========== MIDDLEWARE ==========
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            imgSrc: ["'self'", "data:", "https:"]
+        }
+    }
+}));
 app.use(cors());
-app.use(morgan('tiny'));
+app.use(morgan('dev'));
 app.use(compression());
+app.use(cookieParser());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(fileUpload({
+    useTempFiles: true,
+    tempFileDir: '/tmp/',
+    limits: { fileSize: 50 * 1024 * 1024 },
+    safeFileNames: true,
+    preserveExtension: true
+}));
 
-// Rate limiting
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: 'Too many requests from this IP'
-});
-app.use(limiter);
-
-// ========== SESSION ==========
+// ========== SESSION CONFIGURATION ==========
 const sessionStore = new (require('connect-pg-simple')(session))({
     conString: process.env.DATABASE_URL,
-    createTableIfMissing: true
+    createTableIfMissing: true,
+    tableName: 'user_sessions'
 });
 
 app.use(session({
     store: sessionStore,
-    secret: process.env.SESSION_SECRET || 'secret',
+    secret: process.env.SESSION_SECRET || 'your-64-character-secret-key-change-this',
     resave: false,
     saveUninitialized: false,
     cookie: { 
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 1 week
-    }
+        httpOnly: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        sameSite: 'strict'
+    },
+    name: 'nexuscore.sid'
 }));
+
+// ========== RATE LIMITING ==========
+const { rateLimiterMiddleware } = require('./middleware/rateLimiter');
+app.use(rateLimiterMiddleware);
 
 // ========== VIEW ENGINE ==========
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', [
+    path.join(__dirname, 'views'),
+    path.join(__dirname, 'plugins/views')
+]);
 
 // ========== STATIC FILES ==========
-app.use(express.static('public'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use('/static', express.static(path.join(__dirname, 'public'), {
+    maxAge: '1y',
+    setHeaders: (res, path) => {
+        if (path.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+        }
+    }
+}));
+
+// ========== PLUGIN LOADER ==========
+const { loadPlugins, loadPluginRoutes } = require('./middleware/pluginLoader');
+app.use((req, res, next) => {
+    res.locals.plugins = global.plugins;
+    res.locals.user = req.session.user;
+    next();
+});
 
 // ========== ROUTES ==========
+const indexRoutes = require('./routes/index');
+const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
+const pluginRoutes = require('./routes/plugins');
+const apiRoutes = require('./routes/api');
 
-// Health check
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy', 
-        timestamp: new Date(),
-        uptime: process.uptime()
+app.use('/', indexRoutes);
+app.use('/auth', authRoutes);
+app.use('/admin', adminRoutes);
+app.use('/plugins', pluginRoutes);
+app.use('/api/v1', apiRoutes);
+
+// ========== ERROR HANDLING ==========
+app.use((req, res) => {
+    res.status(404).render('404', {
+        title: '404 - Page Not Found',
+        message: 'The page you are looking for does not exist.'
     });
 });
 
-// Home page
-app.get('/', (req, res) => {
-    res.render('index', {
-        title: 'Home | NexusCore',
-        ownerName: process.env.OWNER_NAME || 'Abdullah',
-        ownerNumber: process.env.OWNER_NUMBER || '+923288055104'
+app.use((err, req, res, next) => {
+    console.error('Error:', err.stack);
+    res.status(err.status || 500).render('error', {
+        title: 'Error',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong!'
     });
 });
 
-// Admin login
-app.get('/admin/login', (req, res) => {
-    res.render('admin/login', {
-        title: 'Admin Login | NexusCore'
-    });
-});
-
-app.post('/admin/login', (req, res) => {
-    const { password } = req.body;
-    if (password === process.env.ADMIN_PASSWORD) {
-        req.session.user = {
-            id: 'admin',
-            name: process.env.OWNER_NAME,
-            role: 'admin'
-        };
-        return res.redirect('/admin');
-    }
-    res.render('admin/login', {
-        title: 'Admin Login | NexusCore',
-        error: 'Incorrect password'
-    });
-});
-
-// Admin dashboard
-app.get('/admin', (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'admin') {
-        return res.redirect('/admin/login');
-    }
-    res.render('admin/dashboard', {
-        title: 'Admin Dashboard | NexusCore',
-        user: req.session.user
-    });
-});
-
-// Plugins page
-app.get('/plugins', (req, res) => {
-    res.render('plugins/index', {
-        title: 'Plugins | NexusCore',
-        plugins: [] // Empty for now
-    });
-});
-
-// ========== START SERVER ==========
-app.listen(PORT, () => {
-    console.log(`
-╔══════════════════════════════════════════╗
-║         🚀 NexusCore Started           ║
-╠══════════════════════════════════════════╣
-║ 📍 Port: ${PORT}                        ║
-║ 🌐 URL: https://your-site.onrender.com  ║
-║ ⚡ Environment: ${process.env.NODE_ENV || 'production'} ║
-╠══════════════════════════════════════════╣
-║         ✅ ALL SYSTEMS GO              ║
-╚══════════════════════════════════════════╝
+// ========== SOCKET.IO EVENTS ==========
+io.on('connection', (socket) => {
+    console.log('🔌 New client connected:', socket.id);
     
+    socket.on('plugin_upload', (data) => {
+        socket.broadcast.emit('plugin_update', data);
+    });
+    
+    socket.on('admin_notification', (data) => {
+        socket.to('admin-room').emit('notification', data);
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('Client disconnected:', socket.id);
+    });
+});
+
+// ========== INITIALIZE AND START ==========
+async function startServer() {
+    try {
+        await initDatabase();
+        console.log('✅ Database initialized');
+        
+        await loadPlugins();
+        console.log('✅ Plugins loaded');
+        
+        server.listen(PORT, HOST, () => {
+            console.log(`
+╔══════════════════════════════════════════════════════════╗
+║              🚀 NEXUSCORE v2.0 STARTED                  ║
+╠══════════════════════════════════════════════════════════╣
+║ 📍 Host: ${HOST}:${PORT}                                ║
+║ 🌐 URL: http://${HOST}:${PORT}                          ║
+║ ⚡ Environment: ${process.env.NODE_ENV || 'development'} ║
+║ 🔌 Plugins Loaded: ${global.plugins.length}             ║
+╠══════════════════════════════════════════════════════════╣
+║              ✅ ALL SYSTEMS OPERATIONAL                 ║
+╚══════════════════════════════════════════════════════════╝
+
 👤 Owner: ${process.env.OWNER_NAME || 'Abdullah'}
 📞 Contact: ${process.env.OWNER_NUMBER || '+923288055104'}
-📊 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}
-🔐 Admin: /admin/login
-🧩 Plugins: /plugins
-🏥 Health: /health
-    `);
-});
+🔐 Admin Panel: /admin/login
+🔑 Default Password: ${process.env.ADMIN_PASSWORD || 'Rana0986'}
+🧩 Plugins Directory: /plugins
+📱 SMS Auth: Enabled
+🤖 WhatsApp Bot: Ready
+📊 Database: Connected
+🛡️ Security: Active
+            `);
+        });
+    } catch (error) {
+        console.error('❌ Failed to start server:', error);
+        process.exit(1);
+    }
+}
+
+startServer();
+
+module.exports = { app, server, io };
