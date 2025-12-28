@@ -63,7 +63,56 @@ app.use('/static', express.static(path.join(__dirname, 'public')));
 
 // ========== GLOBAL PLUGINS ==========
 global.plugins = [];
+// ========== PLUGIN LOADER ==========
+const fs = require('fs').promises;
+const path = require('path');
 
+async function loadPlugins() {
+    const pluginDir = path.join(__dirname, 'plugins');
+    
+    try {
+        await fs.access(pluginDir);
+    } catch {
+        await fs.mkdir(pluginDir, { recursive: true });
+        console.log('📁 Created plugins directory');
+        return;
+    }
+    
+    const files = await fs.readdir(pluginDir);
+    
+    for (const file of files) {
+        if (file.endsWith('.plugin.js')) {
+            try {
+                const pluginPath = path.join(pluginDir, file);
+                const pluginModule = require(pluginPath);
+                
+                const plugin = {
+                    ...pluginModule,
+                    id: file.replace('.plugin.js', ''),
+                    file: file,
+                    loadedAt: new Date(),
+                    enabled: true
+                };
+                
+                // Initialize plugin
+                if (typeof plugin.init === 'function') {
+                    const initResult = await plugin.init(app, null, null);
+                    console.log(`✅ Loaded plugin: ${plugin.name || plugin.id}`, initResult);
+                }
+                
+                global.plugins.push(plugin);
+                
+            } catch (error) {
+                console.error(`❌ Failed to load plugin ${file}:`, error.message);
+            }
+        }
+    }
+    
+    console.log(`📦 Total plugins loaded: ${global.plugins.length}`);
+}
+
+// Load plugins on startup
+loadPlugins().catch(console.error);
 // ========== ROUTES ==========
 
 // Home
