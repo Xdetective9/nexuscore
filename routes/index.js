@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const path = require('path');
 
-// Home page
+// ========== HOME ROUTE ==========
 router.get('/', (req, res) => {
     res.render('index', {
         title: 'Home | NexusCore',
@@ -12,18 +11,17 @@ router.get('/', (req, res) => {
     });
 });
 
-// Health check
+// ========== HEALTH CHECK ==========
 router.get('/health', (req, res) => {
     res.json({ 
         status: 'healthy', 
         timestamp: new Date(),
         uptime: process.uptime(),
-        version: '2.0.0',
-        node: process.version
+        version: '2.0.0'
     });
 });
 
-// Dashboard
+// ========== DASHBOARD ==========
 router.get('/dashboard', (req, res) => {
     if (!req.session.user) {
         return res.redirect('/auth/login');
@@ -35,27 +33,45 @@ router.get('/dashboard', (req, res) => {
     });
 });
 
-// Plugins page
-router.get('/plugins', (req, res) => {
-    res.render('plugins/index', {
-        title: 'Plugins | NexusCore',
+// ========== ABOUT ==========
+router.get('/about', (req, res) => {
+    res.render('about', {
+        title: 'About | NexusCore',
+        ownerName: process.env.OWNER_NAME || 'Abdullah',
+        ownerNumber: process.env.OWNER_NUMBER || '+923288055104'
+    });
+});
+
+// ========== CONTACT ==========
+router.get('/contact', (req, res) => {
+    res.render('contact', {
+        title: 'Contact | NexusCore',
+        ownerName: process.env.OWNER_NAME || 'Abdullah',
+        ownerNumber: process.env.OWNER_NUMBER || '+923288055104'
+    });
+});
+
+// ========== FEATURES ==========
+router.get('/features', (req, res) => {
+    res.render('features', {
+        title: 'Features | NexusCore',
         plugins: global.plugins || []
     });
 });
 
-// About page
-router.get('/about', (req, res) => {
-    res.render('about', {
-        title: 'About | NexusCore',
-        ownerName: process.env.OWNER_NAME,
-        ownerNumber: process.env.OWNER_NUMBER
+// ========== 404 PAGE ==========
+router.get('/404', (req, res) => {
+    res.render('404', {
+        title: '404 - Page Not Found',
+        message: 'The page you are looking for does not exist.'
     });
 });
 
-// Contact page
-router.get('/contact', (req, res) => {
-    res.render('contact', {
-        title: 'Contact | NexusCore'
+// ========== ERROR PAGE ==========
+router.get('/error', (req, res) => {
+    res.render('error', {
+        title: 'Error',
+        message: 'Something went wrong!'
     });
 });
 
