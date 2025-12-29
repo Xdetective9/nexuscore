@@ -373,6 +373,35 @@ app.post('/admin/plugins/upload', async (req, res) => {
     }
 });
 
+// ========== LOAD PLUGIN ROUTES ==========
+function loadPluginRoutes() {
+    global.plugins.forEach(plugin => {
+        try {
+            // Register plugin routes if plugin has registerRoutes method
+            if (typeof plugin.registerRoutes === 'function') {
+                plugin.registerRoutes(app);
+                console.log(`✅ Registered routes for: ${plugin.name}`);
+            }
+            
+            // Create tool pages if plugin has createToolRoute method
+            if (typeof plugin.createToolRoute === 'function') {
+                plugin.createToolRoute(app);
+            }
+            
+            // Add plugin to menu
+            if (plugin.frontend && plugin.frontend.js) {
+                console.log(`✅ Frontend loaded for: ${plugin.name}`);
+            }
+            
+        } catch (error) {
+            console.error(`❌ Failed to load routes for ${plugin.name}:`, error);
+        }
+    });
+}
+
+// Call this after plugins are loaded
+loadPluginRoutes();
+
 // ========== API ROUTES ==========
 app.get('/api/v1/health', (req, res) => {
     res.json({
