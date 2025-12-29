@@ -3,86 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
+    <title><%= title || 'Features' %></title>
     <link rel="stylesheet" href="/static/css/main.css">
+    <style>
+        .hero {
+            text-align: center;
+            padding: 4rem 0 2rem;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 3rem 0;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+    </style>
 </head>
 <body>
-    <%- include('partials/header', { currentPage: 'features' }) %>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="/" class="logo">
+                🚀 <span>NexusCore</span>
+            </a>
+            <div>
+                <a href="/" class="btn btn-sm">Home</a>
+                <a href="/plugins" class="btn btn-sm">Plugins</a>
+                <a href="/auth/login" class="btn btn-sm btn-primary">Login</a>
+            </div>
+        </div>
+    </nav>
     
     <div class="container">
-        <h1 style="text-align: center; margin: 3rem 0;">✨ All Features</h1>
+        <section class="hero">
+            <h1>✨ All Features</h1>
+            <p style="color: #94a3b8; margin-top: 0.5rem;">
+                Everything you need in one platform
+            </p>
+        </section>
         
         <div class="features-grid">
-            <!-- Existing features -->
             <div class="feature-card">
                 <div class="feature-icon">🔌</div>
                 <h3>Plugin System</h3>
-                <p>Hot-reload plugins without restarting the server</p>
+                <p style="color: #94a3b8;">Hot-reload plugins without restarting</p>
             </div>
             
             <div class="feature-card">
                 <div class="feature-icon">🤖</div>
                 <h3>AI Integration</h3>
-                <p>OpenAI GPT-4, Claude, and other AI models</p>
+                <p style="color: #94a3b8;">OpenAI GPT-4 and other AI models</p>
             </div>
             
             <div class="feature-card">
                 <div class="feature-icon">📱</div>
                 <h3>WhatsApp Bot</h3>
-                <p>Automated WhatsApp messaging and responses</p>
+                <p style="color: #94a3b8;">Automated WhatsApp messaging</p>
             </div>
             
             <div class="feature-card">
                 <div class="feature-icon">✈️</div>
                 <h3>Telegram Bot</h3>
-                <p>Telegram bot hosting and management</p>
+                <p style="color: #94a3b8;">Telegram bot hosting</p>
             </div>
             
             <div class="feature-card">
                 <div class="feature-icon">⬇️</div>
                 <h3>Download Manager</h3>
-                <p>Download videos, audio, files from various platforms</p>
+                <p style="color: #94a3b8;">Download from various platforms</p>
             </div>
             
             <div class="feature-card">
                 <div class="feature-icon">🔒</div>
                 <h3>SMS Authentication</h3>
-                <p>Secure phone-based login with OTP verification</p>
-            </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">🎨</div>
-                <h3>Beautiful UI</h3>
-                <p>Modern glass-morphism design with animations</p>
-            </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">⚡</div>
-                <h3>High Performance</h3>
-                <p>Optimized for speed and scalability</p>
+                <p style="color: #94a3b8;">Secure phone-based login</p>
             </div>
         </div>
         
-        <!-- Plugins section -->
-        <% if (plugins && plugins.length > 0) { %>
-            <h2 style="margin: 4rem 0 2rem;">🧩 Active Plugins</h2>
+        <% if (locals.plugins && locals.plugins.length > 0) { %>
+            <h2 style="text-align: center; margin: 4rem 0 2rem;">🧩 Active Plugins</h2>
             <div class="features-grid">
-                <% plugins.forEach(plugin => { %>
+                <% locals.plugins.forEach(plugin => { %>
                     <div class="feature-card">
                         <div class="feature-icon">
                             <%= plugin.icon || '🧩' %>
                         </div>
                         <h3><%= plugin.name %></h3>
-                        <p><%= plugin.description || 'No description' %></p>
-                        <div style="margin-top: 0.5rem;">
-                            <span style="color: #94a3b8; font-size: 0.9rem;">
-                                v<%= plugin.version || '1.0.0' %>
-                            </span>
-                        </div>
+                        <p style="color: #94a3b8;">
+                            <%= plugin.description || 'No description' %>
+                        </p>
                     </div>
                 <% }) %>
             </div>
         <% } %>
+        
+        <div style="text-align: center; margin: 4rem 0; color: #94a3b8;">
+            <p>👤 Owner: <%= process.env.OWNER_NAME || 'Abdullah' %></p>
+            <p>📞 Contact: <%= process.env.OWNER_NUMBER || '+923288055104' %></p>
+        </div>
     </div>
 </body>
 </html>
