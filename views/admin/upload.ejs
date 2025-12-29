@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title || 'Upload Plugin' %></title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="/" class="logo">
+                🚀 <span>NexusCore</span>
+            </a>
+            <div>
+                <a href="/admin" class="btn btn-sm">← Back to Admin</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div style="max-width: 600px; margin: 3rem auto;">
+            <h1>📤 Upload Plugin</h1>
+            <p style="color: #94a3b8; margin-bottom: 2rem;">
+                Upload a .plugin.js file to add new functionality
+            </p>
+            
+            <div class="feature-card" style="background: rgba(255, 255, 255, 0.03); padding: 2rem; border-radius: 12px;">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label class="form-label">Plugin File (.plugin.js)</label>
+                        <input 
+                            type="file" 
+                            name="plugin" 
+                            class="form-control" 
+                            accept=".plugin.js" 
+                            required
+                            style="color: white;"
+                        >
+                        <small style="color: #94a3b8; display: block; margin-top: 0.25rem;">
+                            File must end with .plugin.js
+                        </small>
+                    </div>
+                    
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+                        <button type="submit" class="btn btn-primary">
+                            Upload Plugin
+                        </button>
+                        <a href="/admin/plugins" class="btn btn-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+                
+                <div id="uploadResult" style="margin-top: 1.5rem;"></div>
+            </div>
+            
+            <div style="margin-top: 2rem; color: #94a3b8;">
+                <h3>📝 Plugin Requirements:</h3>
+                <ul style="margin-top: 0.5rem;">
+                    <li>File must be a .plugin.js file</li>
+                    <li>Must export a valid plugin object</li>
+                    <li>Should include name, version, and init function</li>
+                    <li>Max file size: 50MB</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const resultDiv = document.getElementById('uploadResult');
+            
+            resultDiv.innerHTML = '<div style="color: #f59e0b;">Uploading...</div>';
+            
+            try {
+                const response = await fetch('/admin/plugins/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `
+                        <div style="color: #10b981; background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 8px;">
+                            ✅ ${result.message}
+                            <p style="margin-top: 0.5rem;">Plugin: ${result.plugin.name}</p>
+                        </div>
+                    `;
+                    
+                    // Clear form
+                    e.target.reset();
+                    
+                    // Redirect after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/admin/plugins';
+                    }, 2000);
+                } else {
+                    resultDiv.innerHTML = `
+                        <div style="color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px;">
+                            ❌ ${result.error || 'Upload failed'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div style="color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px;">
+                        ❌ Network error: ${error.message}
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
