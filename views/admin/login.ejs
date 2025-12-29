@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
+    <title><%= title || 'Admin Login' %></title>
     <link rel="stylesheet" href="/static/css/main.css">
     <style>
         .login-container {
@@ -12,7 +12,7 @@
             padding: 2rem;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--radius);
+            border-radius: 12px;
             backdrop-filter: blur(10px);
         }
         
@@ -27,21 +27,30 @@
             border: 1px solid rgba(239, 68, 68, 0.3);
             color: #fca5a5;
             padding: 0.75rem;
-            border-radius: var(--radius);
+            border-radius: 8px;
             margin-bottom: 1rem;
         }
     </style>
 </head>
 <body>
-    <%- include('partials/header') %>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="/" class="logo">
+                🚀 <span>NexusCore</span>
+            </a>
+            <div>
+                <a href="/" class="btn btn-sm">Home</a>
+            </div>
+        </div>
+    </nav>
     
     <div class="container">
         <div class="login-container">
             <h2 class="login-title">🔐 Admin Login</h2>
             
-            <% if (error) { %>
+            <% if (locals.error) { %>
                 <div class="error-message">
-                    <%= error %>
+                    <%= locals.error %>
                 </div>
             <% } %>
             
@@ -63,13 +72,11 @@
             </form>
             
             <div style="text-align: center; margin-top: 1.5rem; color: #94a3b8;">
-                <p class="small-caps">default password: Rana0986</p>
+                <p>Default password: <code>Rana0986</code></p>
                 <p>Owner: <%= process.env.OWNER_NAME || 'Abdullah' %></p>
                 <p>Contact: <%= process.env.OWNER_NUMBER || '+923288055104' %></p>
             </div>
         </div>
     </div>
-    
-    <script src="/static/js/main.js"></script>
 </body>
 </html>
