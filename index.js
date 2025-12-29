@@ -408,6 +408,22 @@ app.get('/api/plugins/downloader/supported', (req, res) => {
     });
 });
 
+// Tools page
+app.get('/tools', (req, res) => {
+    res.render('tools/index', {
+        title: 'Tools | NexusCore',
+        user: req.session.user
+    });
+});
+
+// Background remover tool route
+app.get('/tools/background-remover', (req, res) => {
+    res.render('tools/background-remover', {
+        title: 'Background Remover | NexusCore',
+        user: req.session.user
+    });
+});
+
 // ========== ERROR HANDLING ==========
 app.use((req, res) => {
     res.status(404).render('404', {
