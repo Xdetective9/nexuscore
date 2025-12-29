@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
+    <title><%= title || 'Plugins' %></title>
     <link rel="stylesheet" href="/static/css/main.css">
     <style>
         .plugins-header {
@@ -21,7 +21,7 @@
         .plugin-card {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--radius);
+            border-radius: 12px;
             padding: 1.5rem;
             transition: all 0.3s ease;
         }
@@ -29,7 +29,6 @@
         .plugin-card:hover {
             transform: translateY(-5px);
             border-color: rgba(99, 102, 241, 0.3);
-            box-shadow: var(--shadow);
         }
         
         .plugin-icon {
@@ -37,52 +36,38 @@
             margin-bottom: 1rem;
         }
         
-        .plugin-actions {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-        
         .empty-state {
             text-align: center;
             padding: 3rem;
             color: #94a3b8;
         }
-        
-        .upload-section {
-            background: rgba(255, 255, 255, 0.02);
-            border: 2px dashed rgba(255, 255, 255, 0.1);
-            border-radius: var(--radius);
-            padding: 2rem;
-            text-align: center;
-            margin: 2rem 0;
-        }
-        
-        .upload-section:hover {
-            border-color: rgba(99, 102, 241, 0.3);
-        }
     </style>
 </head>
 <body>
-    <%- include('partials/header') %>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="/" class="logo">
+                🚀 <span>NexusCore</span>
+            </a>
+            <div>
+                <a href="/" class="btn btn-sm">Home</a>
+                <a href="/features" class="btn btn-sm">Features</a>
+                <a href="/auth/login" class="btn btn-sm btn-primary">Login</a>
+            </div>
+        </div>
+    </nav>
     
     <div class="container">
         <div class="plugins-header">
             <h1>🧩 Plugin Marketplace</h1>
-            <p class="hero-subtitle">
+            <p style="color: #94a3b8; margin-top: 0.5rem;">
                 Extend your platform with powerful plugins
             </p>
-            
-            <% if (user && user.role === 'admin') { %>
-                <a href="/admin/plugins/upload" class="btn btn-primary">
-                    📤 Upload Plugin
-                </a>
-            <% } %>
         </div>
         
-        <% if (plugins && plugins.length > 0) { %>
+        <% if (locals.plugins && locals.plugins.length > 0) { %>
             <div class="plugins-grid">
-                <% plugins.forEach(plugin => { %>
+                <% locals.plugins.forEach(plugin => { %>
                     <div class="plugin-card">
                         <div class="plugin-icon">
                             <%= plugin.icon || '🧩' %>
@@ -110,14 +95,9 @@
                             <% } %>
                         </div>
                         
-                        <div class="plugin-actions">
-                            <button onclick="loadPlugin('<%= plugin.id %>')" class="btn btn-sm btn-primary">
-                                Load
-                            </button>
-                            
-                            <button onclick="togglePlugin('<%= plugin.id %>', <%= !plugin.enabled %>)" 
-                                    class="btn btn-sm <%= plugin.enabled ? 'btn-secondary' : 'btn-primary' %>">
-                                <%= plugin.enabled ? 'Disable' : 'Enable' %>
+                        <div style="margin-top: 1rem;">
+                            <button class="btn btn-sm btn-primary">
+                                Load Plugin
                             </button>
                         </div>
                     </div>
@@ -127,91 +107,17 @@
             <div class="empty-state">
                 <div style="font-size: 4rem; margin-bottom: 1rem;">📦</div>
                 <h3>No Plugins Yet</h3>
-                <p>Upload your first plugin to get started!</p>
-                
-                <% if (user && user.role === 'admin') { %>
-                    <a href="/admin/plugins/upload" class="btn btn-primary mt-2">
-                        Upload First Plugin
-                    </a>
-                <% } else { %>
-                    <p class="small-caps" style="margin-top: 1rem;">
-                        Contact admin to add plugins
-                    </p>
-                <% } %>
-            </div>
-        <% } %>
-        
-        <% if (user && user.role === 'admin') { %>
-            <div class="upload-section">
-                <h3>📤 Quick Upload</h3>
-                <p style="color: #94a3b8; margin: 1rem 0;">
-                    Upload a .plugin.js file directly
+                <p>Plugins will appear here when uploaded.</p>
+                <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 1rem;">
+                    Contact admin to add plugins
                 </p>
-                
-                <form id="quickUploadForm" enctype="multipart/form-data">
-                    <input type="file" name="plugin" accept=".plugin.js" required
-                           style="margin: 1rem 0; color: white;">
-                    <button type="submit" class="btn btn-primary">
-                        Upload Plugin
-                    </button>
-                </form>
             </div>
         <% } %>
+        
+        <div style="text-align: center; margin: 3rem 0; color: #94a3b8;">
+            <p>👤 Owner: <%= process.env.OWNER_NAME || 'Abdullah' %></p>
+            <p>📞 Contact: <%= process.env.OWNER_NUMBER || '+923288055104' %></p>
+        </div>
     </div>
-    
-    <script>
-        function loadPlugin(pluginId) {
-            fetch(`/api/plugins/${pluginId}/load`, {
-                method: 'POST'
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Plugin loaded successfully!');
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            });
-        }
-        
-        function togglePlugin(pluginId, enabled) {
-            fetch(`/admin/plugins/${pluginId}/toggle`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ enabled })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            });
-        }
-        
-        // Quick upload form
-        document.getElementById('quickUploadForm')?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            
-            const response = await fetch('/admin/plugins/upload', {
-                method: 'POST',
-                body: formData
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                alert('Plugin uploaded successfully!');
-                location.reload();
-            } else {
-                alert('Upload failed: ' + result.error);
-            }
-        });
-    </script>
 </body>
 </html>
