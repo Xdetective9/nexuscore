@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <style>
+        .tool-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 2rem;
+        }
+        
+        .tool-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .upload-area {
+            border: 3px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 4rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .upload-area:hover {
+            border-color: #6366f1;
+            background: rgba(99, 102, 241, 0.05);
+        }
+        
+        .upload-area.dragover {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #94a3b8;
+        }
+        
+        .image-preview {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .image-box {
+            text-align: center;
+        }
+        
+        .image-box h3 {
+            margin-bottom: 1rem;
+            color: white;
+        }
+        
+        .image-box img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .processing {
+            text-align: center;
+            padding: 3rem;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .result-actions {
+            text-align: center;
+            margin-top: 2rem;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .info-box {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            color: #a5b4fc;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            color: #94a3b8;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="/" class="logo">
+                🚀 <span>NexusCore</span>
+            </a>
+            <div>
+                <a href="/" class="btn btn-sm">Home</a>
+                <a href="/tools" class="btn btn-sm">All Tools</a>
+                <a href="/plugins" class="btn btn-sm">Plugins</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container tool-container">
+        <a href="/plugins" class="back-link">← Back to Plugins</a>
+        
+        <div class="tool-header">
+            <h1>🎨 Background Remover</h1>
+            <p style="color: #94a3b8; max-width: 600px; margin: 0.5rem auto 0;">
+                Remove backgrounds from images using AI. Supports JPG, PNG, WEBP up to 10MB.
+            </p>
+        </div>
+        
+        <div class="info-box">
+            <p>📌 <strong>How to use:</strong></p>
+            <ol style="margin: 0.5rem 0 0 1.5rem; color: #cbd5e1;">
+                <li>Upload an image (drag & drop or click)</li>
+                <li>Wait for AI processing</li>
+                <li>Download the result with transparent background</li>
+            </ol>
+        </div>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <h3>Drag & Drop Image Here</h3>
+            <p style="color: #94a3b8; margin: 0.5rem 0 1rem;">or click to browse</p>
+            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                Choose Image
+            </button>
+            <p style="color: #64748b; font-size: 0.9rem; margin-top: 1rem;">
+                Supports: JPG, PNG, WEBP • Max: 10MB
+            </p>
+        </div>
+        
+        <input type="file" id="fileInput" class="file-input" accept=".jpg,.jpeg,.png,.webp">
+        
+        <div id="processingSection" class="processing" style="display: none;">
+            <div class="spinner"></div>
+            <h3>Processing Image...</h3>
+            <p style="color: #94a3b8;">Removing background with AI</p>
+        </div>
+        
+        <div id="resultSection" style="display: none;">
+            <div class="image-preview">
+                <div class="image-box">
+                    <h3>Original Image</h3>
+                    <img id="originalImage" src="" alt="Original">
+                </div>
+                <div class="image-box">
+                    <h3>Background Removed</h3>
+                    <img id="resultImage" src="" alt="Result">
+                </div>
+            </div>
+            
+            <div class="result-actions">
+                <button onclick="downloadResult()" class="btn btn-primary">
+                    ⬇️ Download Result
+                </button>
+                <button onclick="resetTool()" class="btn btn-secondary">
+                    🔄 Process Another
+                </button>
+            </div>
+        </div>
+        
+        <div id="errorSection" style="display: none; text-align: center; margin-top: 2rem;">
+            <div style="color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px;">
+                <h3>❌ Error</h3>
+                <p id="errorMessage"></p>
+                <button onclick="resetTool()" class="btn btn-secondary" style="margin-top: 1rem;">
+                    Try Again
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // DOM Elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const processingSection = document.getElementById('processingSection');
+        const resultSection = document.getElementById('resultSection');
+        const errorSection = document.getElementById('errorSection');
+        const originalImage = document.getElementById('originalImage');
+        const resultImage = document.getElementById('resultImage');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        let currentFile = null;
+        
+        // Drag & Drop Events
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+        
+        // File Input Change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFile(e.target.files[0]);
+            }
+        });
+        
+        // Handle File
+        function handleFile(file) {
+            // Validate file
+            const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            
+            if (!validTypes.includes(file.type)) {
+                showError('Please upload a valid image file (JPG, PNG, WEBP)');
+                return;
+            }
+            
+            if (file.size > maxSize) {
+                showError('File too large. Maximum size is 10MB');
+                return;
+            }
+            
+            currentFile = file;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                originalImage.src = e.target.result;
+                processImage(file);
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Process Image
+        async function processImage(file) {
+            // Show processing
+            uploadArea.style.display = 'none';
+            processingSection.style.display = 'block';
+            errorSection.style.display = 'none';
+            resultSection.style.display = 'none';
+            
+            try {
+                // Create FormData
+                const formData = new FormData();
+                formData.append('image', file);
+                
+                // Send to API
+                const response = await fetch('/api/plugins/background-remover/remove', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show result
+                    resultImage.src = result.result.imageBase64;
+                    
+                    processingSection.style.display = 'none';
+                    resultSection.style.display = 'block';
+                } else {
+                    showError(result.error || 'Failed to remove background');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            }
+        }
+        
+        // Download Result
+        function downloadResult() {
+            if (!resultImage.src) return;
+            
+            const link = document.createElement('a');
+            link.href = resultImage.src;
+            link.download = 'background-removed-' + Date.now() + '.png';
+            link.click();
+        }
+        
+        // Reset Tool
+        function resetTool() {
+            uploadArea.style.display = 'block';
+            processingSection.style.display = 'none';
+            resultSection.style.display = 'none';
+            errorSection.style.display = 'none';
+            fileInput.value = '';
+            currentFile = null;
+        }
+        
+        // Show Error
+        function showError(message) {
+            errorMessage.textContent = message;
+            uploadArea.style.display = 'none';
+            processingSection.style.display = 'none';
+            resultSection.style.display = 'none';
+            errorSection.style.display = 'block';
+        }
+        
+        // Initialize
+        console.log('🎨 Background Remover Tool Loaded');
+    </script>
+</body>
+</html>
