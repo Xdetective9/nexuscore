@@ -3,45 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
+    <title><%= title || 'Admin Dashboard' %></title>
     <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
-    <%- include('../partials/header', { currentPage: 'admin' }) %>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="/" class="logo">
+                🚀 <span>NexusCore</span>
+            </a>
+            <div>
+                <a href="/" class="btn btn-sm">Home</a>
+                <a href="/admin/plugins" class="btn btn-sm">Plugins</a>
+                <a href="/auth/logout" class="btn btn-sm btn-danger">Logout</a>
+            </div>
+        </div>
+    </nav>
     
     <div class="container">
         <div style="margin: 2rem 0;">
             <h1>⚡ Admin Dashboard</h1>
-            <p style="color: #94a3b8;">Welcome, <%= user.name %></p>
+            <p style="color: #94a3b8;">
+                Welcome, <%= locals.user ? locals.user.name : 'Admin' %>
+            </p>
         </div>
         
         <!-- Stats Cards -->
-        <div class="features-grid">
+        <div class="features-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
             <div class="feature-card">
                 <h3>👥 Total Users</h3>
                 <p style="font-size: 2.5rem; color: #818cf8; margin: 1rem 0;">
-                    <%= stats.totalUsers || 0 %>
+                    <%= locals.stats ? locals.stats.totalUsers || 0 : 0 %>
                 </p>
             </div>
             
             <div class="feature-card">
                 <h3>🧩 Active Plugins</h3>
                 <p style="font-size: 2.5rem; color: #10b981; margin: 1rem 0;">
-                    <%= stats.totalPlugins || 0 %>
+                    <%= locals.stats ? locals.stats.totalPlugins || 0 : 0 %>
                 </p>
             </div>
             
             <div class="feature-card">
                 <h3>📊 Daily Logs</h3>
                 <p style="font-size: 2.5rem; color: #f59e0b; margin: 1rem 0;">
-                    <%= stats.dailyLogs || 0 %>
+                    <%= locals.stats ? locals.stats.dailyLogs || 0 : 0 %>
                 </p>
             </div>
             
             <div class="feature-card">
                 <h3>📱 SMS Sent</h3>
                 <p style="font-size: 2.5rem; color: #ec4899; margin: 1rem 0;">
-                    <%= stats.dailySMS || 0 %>
+                    <%= locals.stats ? locals.stats.dailySMS || 0 : 0 %>
                 </p>
             </div>
         </div>
@@ -58,23 +71,13 @@
                 <div style="font-size: 2rem;">📤</div>
                 <div>Upload Plugin</div>
             </a>
-            
-            <a href="/admin/users" class="btn btn-secondary" style="padding: 1.5rem; text-align: center;">
-                <div style="font-size: 2rem;">👥</div>
-                <div>User Management</div>
-            </a>
-            
-            <a href="/admin/settings" class="btn btn-secondary" style="padding: 1.5rem; text-align: center;">
-                <div style="font-size: 2rem;">⚙️</div>
-                <div>Settings</div>
-            </a>
         </div>
         
         <!-- Recent Plugins -->
-        <% if (plugins && plugins.length > 0) { %>
+        <% if (locals.plugins && locals.plugins.length > 0) { %>
             <h2 style="margin: 3rem 0 1rem;">📦 Recent Plugins</h2>
-            <div class="features-grid">
-                <% plugins.slice(0, 4).forEach(plugin => { %>
+            <div class="features-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                <% locals.plugins.slice(0, 4).forEach(plugin => { %>
                     <div class="feature-card">
                         <h3><%= plugin.name %></h3>
                         <p style="color: #94a3b8; margin: 0.5rem 0;">
@@ -89,6 +92,11 @@
                 <% }) %>
             </div>
         <% } %>
+        
+        <div style="text-align: center; margin: 4rem 0; color: #94a3b8;">
+            <p>👤 Owner: <%= process.env.OWNER_NAME || 'Abdullah' %></p>
+            <p>📞 Contact: <%= process.env.OWNER_NUMBER || '+923288055104' %></p>
+        </div>
     </div>
 </body>
 </html>
